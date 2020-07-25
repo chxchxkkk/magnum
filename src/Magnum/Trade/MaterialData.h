@@ -289,6 +289,8 @@ enum class MaterialAttributeType: UnsignedByte {
     Rad,            /**< @ref Magnum::Rad "Rad" */
     UnsignedInt,    /**< @ref Magnum::UnsignedInt "UnsignedInt" */
     Int,            /**< @ref Magnum::Int "Int" */
+    UnsignedLong,   /**< @ref Magnum::UnsignedLong "UnsignedLong" */
+    Long,           /**< @ref Magnum::Long "Long" */
 
     Vector2,        /**< @ref Magnum::Vector2 "Vector2" */
     Vector2ui,      /**< @ref Magnum::Vector2ui "Vector2ui" */
@@ -314,6 +316,20 @@ enum class MaterialAttributeType: UnsignedByte {
     Matrix4x3,      /**< @ref Magnum::Matrix4x3 "Matrix4x3" */
 
     /* Matrix4x4 not present */
+
+    /**
+     * @cpp const void* @ce, type is not preserved. For convenience it's
+     * possible to retrieve the value by calling @cpp attribute<const T>() @ce
+     * with an arbitrary `T` but the user has to ensure the type is correct.
+     */
+    Pointer,
+
+    /**
+     * @cpp void* @ce, type is not preserved. For convenience it's possible to
+     * retrieve the value by calling @cpp attribute<T>() @ce with an arbitrary
+     * `T` but the user has to ensure the type is correct.
+     */
+    MutablePointer,
 };
 
 /**
@@ -425,7 +441,10 @@ class MAGNUM_TRADE_EXPORT MaterialAttributeData {
         /**
          * @brief Type-erased attribute value
          *
-         * Cast the pointer to a concrete type based on @ref type().
+         * Cast the pointer to a concrete type based on @ref type(). Note that
+         * in case of a @ref MaterialAttributeType::Pointer or a
+         * @ref MaterialAttributeType::MutablePointer, returns a
+         * *pointer to a pointer*, not the pointer value itself.
          */
         const void* value() const;
 
@@ -452,6 +471,13 @@ class MAGNUM_TRADE_EXPORT MaterialAttributeData {
             Float f;
             UnsignedInt u;
             Int i;
+        };
+        union ErasedLongScalar {
+            constexpr explicit ErasedLongScalar(UnsignedLong value): u{value} {}
+            constexpr explicit ErasedLongScalar(Long value): i{value} {}
+
+            UnsignedLong u;
+            Long i;
         };
         template<std::size_t size> union ErasedVector {
             constexpr explicit ErasedVector(const Math::Vector<size, Float>& value): f{value} {}
@@ -482,7 +508,9 @@ class MAGNUM_TRADE_EXPORT MaterialAttributeData {
 
             template<class T> constexpr explicit Storage(typename std::enable_if<sizeof(T) == 1, MaterialAttributeType>::type type, Containers::StringView name, const T& value) noexcept: _1{type, name, value} {}
             template<class T> constexpr explicit Storage(typename std::enable_if<sizeof(T) == 4, MaterialAttributeType>::type type, Containers::StringView name, const T& value) noexcept: _4{type, name, value} {}
-            template<class T> constexpr explicit Storage(typename std::enable_if<sizeof(T) == 8, MaterialAttributeType>::type type, Containers::StringView name, const T& value) noexcept: _8{type, name, value} {}
+            template<class T> constexpr explicit Storage(typename std::enable_if<sizeof(T) == 8 && !Math::IsVector<T>::value && !std::is_pointer<T>::value, MaterialAttributeType>::type type, Containers::StringView name, const T& value) noexcept: _8{type, name, value} {}
+            template<class T> constexpr explicit Storage(typename std::enable_if<sizeof(T) == 8 && Math::IsVector<T>::value && !std::is_pointer<T>::value, MaterialAttributeType>::type type, Containers::StringView name, const T& value) noexcept: _8v{type, name, value} {}
+            constexpr explicit Storage(MaterialAttributeType type, Containers::StringView name, const void* value) noexcept: p{type, name, value} {}
             template<class T> constexpr explicit Storage(typename std::enable_if<sizeof(T) == 12, MaterialAttributeType>::type type, Containers::StringView name, const T& value) noexcept: _12{type, name, value} {}
             template<class T> constexpr explicit Storage(typename std::enable_if<sizeof(T) == 16 && Math::IsVector<T>::value, MaterialAttributeType>::type type, Containers::StringView name, const T& value) noexcept: _16{type, name, value} {}
             template<class T> constexpr explicit Storage(typename std::enable_if<sizeof(T) == 16 && !Math::IsVector<T>::value, MaterialAttributeType>::type type, Containers::StringView name, const T& value) noexcept: _16m{type, name, value} {}
@@ -494,8 +522,10 @@ class MAGNUM_TRADE_EXPORT MaterialAttributeData {
             MaterialAttributeType type;
             char data[Implementation::MaterialAttributeDataSize];
             Data<bool> _1;
+            Data<const void*> p;
             Data<ErasedScalar> _4;
-            Data<ErasedVector<2>> _8;
+            Data<ErasedLongScalar> _8;
+            Data<ErasedVector<2>> _8v;
             Data<ErasedVector<3>> _12;
             Data<ErasedVector<4>> _16;
             Data<Math::RectangularMatrix<2, 2, Float>> _16m;
@@ -753,7 +783,10 @@ class MAGNUM_TRADE_EXPORT MaterialData {
          * @brief Type-erased attribute value
          *
          * The @p id is expected to be smaller than @ref attributeCount() const.
-         * Cast the pointer to a concrete type based on @ref type().
+         * Cast the pointer to a concrete type based on @ref type(). Note that
+         * in case of a @ref MaterialAttributeType::Pointer or a
+         * @ref MaterialAttributeType::MutablePointer, returns a
+         * *pointer to a pointer*, not the pointer value itself.
          */
         const void* attribute(UnsignedInt id) const;
 
@@ -761,7 +794,10 @@ class MAGNUM_TRADE_EXPORT MaterialData {
          * @brief Type-erased value of a named attribute
          *
          * The @p name is expected to exist. Cast the pointer to a concrete
-         * type based on @ref attributeType().
+         * type based on @ref attributeType(). Note that
+         * in case of a @ref MaterialAttributeType::Pointer or a
+         * @ref MaterialAttributeType::MutablePointer, returns a
+         * *pointer to a pointer*, not the pointer value itself.
          * @see @ref hasAttribute(), @ref tryAttribute(), @ref attributeOr()
          */
         const void* attribute(Containers::StringView name) const;
@@ -930,6 +966,16 @@ namespace Implementation {
             return MaterialAttributeType::Bool;
         }
     };
+    template<class T> struct MaterialAttributeTypeFor<const T*> {
+        constexpr static MaterialAttributeType type() {
+            return MaterialAttributeType::Pointer;
+        }
+    };
+    template<class T> struct MaterialAttributeTypeFor<T*> {
+        constexpr static MaterialAttributeType type() {
+            return MaterialAttributeType::MutablePointer;
+        }
+    };
     #ifndef DOXYGEN_GENERATING_OUTPUT
     #define _c(type_) template<> struct MaterialAttributeTypeFor<type_> {   \
         constexpr static MaterialAttributeType type() {                     \
@@ -941,6 +987,8 @@ namespace Implementation {
     _c(Rad)
     _c(UnsignedInt)
     _c(Int)
+    _c(UnsignedLong)
+    _c(Long)
     _c(Vector2)
     _c(Vector2ui)
     _c(Vector2i)
