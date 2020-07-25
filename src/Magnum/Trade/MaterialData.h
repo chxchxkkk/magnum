@@ -330,11 +330,21 @@ enum class MaterialAttributeType: UnsignedByte {
      * `T` but the user has to ensure the type is correct.
      */
     MutablePointer,
+
+    /**
+     * Null-terminated string. Can be stored using any type convertible to
+     * @ref Corrade::Containers::StringView, retrieval has to be done using
+     * @ref Corrade::Containers::StringView.
+     */
+    String
 };
 
 /**
 @brief Byte size of a material attribute type
 @m_since_latest
+
+Can't be used with @ref MaterialAttributeType::String, as the size varies
+depending on the value.
 */
 MAGNUM_TRADE_EXPORT std::size_t materialAttributeTypeSize(MaterialAttributeType type);
 
@@ -380,11 +390,33 @@ class MAGNUM_TRADE_EXPORT MaterialAttributeData {
          * don't need @cpp constexpr @ce, as it additionally checks that given
          * attribute has the expected type.
          */
-        template<class T> constexpr /*implicit*/ MaterialAttributeData(Containers::StringView name, const T& value) noexcept;
+        template<class T
+            #ifndef DOXYGEN_GENERATING_OUTPUT
+            , class = typename std::enable_if<!std::is_convertible<const T&, Containers::StringView>::value>::type
+            #endif
+        > constexpr /*implicit*/ MaterialAttributeData(Containers::StringView name, const T& value) noexcept;
+
+        /**
+         * @brief Construct with a string name and value
+         * @param name      Attribute name
+         * @param value     Attribute value
+         *
+         * The combined length of @p name and @p value is expected to fit into
+         * 61 bytes. Type is set to @ref MaterialAttributeType::String.
+         *
+         * This function is useful in @cpp constexpr @ce contexts and for
+         * creating custom material attributes. For known attributes prefer to
+         * use @ref MaterialAttributeData(MaterialAttribute, const T&) if you
+         * don't need @cpp constexpr @ce, as it additionally checks that given
+         * attribute has the expected type.
+         */
+        constexpr /*implicit*/ MaterialAttributeData(Containers::StringView name, Containers::StringView value) noexcept;
+
         #ifndef DOXYGEN_GENERATING_OUTPUT
-        /* "Sure can't be constexpr" overload to avoid going through the
+        /* "Sure can't be constexpr" overloads to avoid going through the
            *insane* overload puzzle when not needed */
-        template<class T> /*implicit*/ MaterialAttributeData(const char* name, const T& value) noexcept: MaterialAttributeData{name, Implementation::MaterialAttributeTypeFor<T>::type(), sizeof(T), &value} {}
+        template<class T, class = typename std::enable_if<!std::is_convertible<const T&, Containers::StringView>::value>::type> /*implicit*/ MaterialAttributeData(const char* name, const T& value) noexcept: MaterialAttributeData{name, Implementation::MaterialAttributeTypeFor<T>::type(), sizeof(T), &value} {}
+        /*implicit*/ MaterialAttributeData(const char* name, Containers::StringView value) noexcept: MaterialAttributeData{name, MaterialAttributeType::String, 0, &value} {}
         #endif
 
         /**
@@ -400,7 +432,11 @@ class MAGNUM_TRADE_EXPORT MaterialAttributeData {
          *
          * @snippet MagnumTrade.cpp MaterialAttributeData-name
          */
-        template<class T> /*implicit*/ MaterialAttributeData(MaterialAttribute name, const T& value) noexcept: MaterialAttributeData{name, Implementation::MaterialAttributeTypeFor<T>::type(), &value} {}
+        template<class T
+            #ifndef DOXYGEN_GENERATING_OUTPUT
+            , class = typename std::enable_if<!std::is_convertible<const T&, Containers::StringView>::value>::type
+            #endif
+        > /*implicit*/ MaterialAttributeData(MaterialAttribute name, const T& value) noexcept: MaterialAttributeData{name, Implementation::MaterialAttributeTypeFor<T>::type(), &value} {}
 
         /**
          * @brief Construct from a type-erased value
@@ -408,9 +444,15 @@ class MAGNUM_TRADE_EXPORT MaterialAttributeData {
          * @param type      Attribute type
          * @param value     Type-erased value
          *
-         * Copies a number of bytes according to @ref materialAttributeTypeSize()
-         * from @p value. The @p name together with @p value is expected to fit
-         * into 62 bytes.
+         * In case @p type is not @ref MaterialAttributeType::String, copies a
+         * number of bytes according to @ref materialAttributeTypeSize() from
+         * @p value. The @p name together with @p value is expected to fit into
+         * 62 bytes.
+         *
+         * In case @p type is @ref MaterialAttributeType::String, @p value is
+         * expected to point to a @ref Containers::StringView. The combined
+         * length of @p name and @p value strings is expected to fit into 61
+         * bytes.
          */
         /*implicit*/ MaterialAttributeData(Containers::StringView name, MaterialAttributeType type, const void* value) noexcept;
 
@@ -445,6 +487,12 @@ class MAGNUM_TRADE_EXPORT MaterialAttributeData {
          * in case of a @ref MaterialAttributeType::Pointer or a
          * @ref MaterialAttributeType::MutablePointer, returns a
          * *pointer to a pointer*, not the pointer value itself.
+         *
+         * In case of a @ref MaterialAttributeType::String, returns a
+         * null-terminated @cpp const char* @ce (not a pointer to
+         * @ref Containers::StringView). This doesn't preserve the actual
+         * string size in case the string data contain zero bytes, thus prefer
+         * to use typed access in that case.
          */
         const void* value() const;
 
@@ -461,6 +509,14 @@ class MAGNUM_TRADE_EXPORT MaterialAttributeData {
         explicit MaterialAttributeData(Containers::StringView name, const MaterialAttributeType type, std::size_t typeSize, const void* value) noexcept;
 
         /* All this is needed only for the constexpr constructor. Yay C++. */
+        struct StringData {
+            template<std::size_t ...sequence> constexpr explicit StringData(MaterialAttributeType type, Containers::StringView name, Containers::StringView value, Math::Implementation::Sequence<sequence...>): type{type}, nameValue{(sequence < name.size() ? name[sequence] : (sequence - (Implementation::MaterialAttributeDataSize - value.size() - 3) < value.size() ? value[sequence - (Implementation::MaterialAttributeDataSize - value.size() - 3)] : '\0'))...}, size{UnsignedByte(value.size())} {}
+            constexpr explicit StringData(MaterialAttributeType type, Containers::StringView name, Containers::StringView value): StringData{type, name, value, typename Math::Implementation::GenerateSequence<Implementation::MaterialAttributeDataSize - 2>::Type{}} {}
+
+            MaterialAttributeType type;
+            char nameValue[Implementation::MaterialAttributeDataSize - 2];
+            UnsignedByte size;
+        };
         union ErasedScalar {
             constexpr explicit ErasedScalar(Float value): f{value} {}
             constexpr explicit ErasedScalar(Deg value): f{Float(value)} {}
@@ -506,6 +562,8 @@ class MAGNUM_TRADE_EXPORT MaterialAttributeData {
         union CORRADE_ALIGNAS(8) Storage {
             constexpr explicit Storage() noexcept: data{} {}
 
+            constexpr explicit Storage(Containers::StringView name, Containers::StringView value) noexcept: s{MaterialAttributeType::String, name, value} {}
+
             template<class T> constexpr explicit Storage(typename std::enable_if<sizeof(T) == 1, MaterialAttributeType>::type type, Containers::StringView name, const T& value) noexcept: _1{type, name, value} {}
             template<class T> constexpr explicit Storage(typename std::enable_if<sizeof(T) == 4, MaterialAttributeType>::type type, Containers::StringView name, const T& value) noexcept: _4{type, name, value} {}
             template<class T> constexpr explicit Storage(typename std::enable_if<sizeof(T) == 8 && !Math::IsVector<T>::value && !std::is_pointer<T>::value, MaterialAttributeType>::type type, Containers::StringView name, const T& value) noexcept: _8{type, name, value} {}
@@ -521,6 +579,7 @@ class MAGNUM_TRADE_EXPORT MaterialAttributeData {
 
             MaterialAttributeType type;
             char data[Implementation::MaterialAttributeDataSize];
+            StringData s;
             Data<bool> _1;
             Data<const void*> p;
             Data<ErasedScalar> _4;
@@ -787,6 +846,12 @@ class MAGNUM_TRADE_EXPORT MaterialData {
          * in case of a @ref MaterialAttributeType::Pointer or a
          * @ref MaterialAttributeType::MutablePointer, returns a
          * *pointer to a pointer*, not the pointer value itself.
+         *
+         * In case of a @ref MaterialAttributeType::String returns a
+         * null-terminated @cpp const char* @ce (not a pointer to
+         * @ref Containers::StringView). This doesn't preserve the actual
+         * string size in case the string data contain zero bytes, thus prefer
+         * to use typed access in that case.
          */
         const void* attribute(UnsignedInt id) const;
 
@@ -798,6 +863,12 @@ class MAGNUM_TRADE_EXPORT MaterialData {
          * in case of a @ref MaterialAttributeType::Pointer or a
          * @ref MaterialAttributeType::MutablePointer, returns a
          * *pointer to a pointer*, not the pointer value itself.
+         *
+         * In case of a @ref MaterialAttributeType::String returns a
+         * null-terminated @cpp const char* @ce (not a pointer to
+         * @ref Containers::StringView). This doesn't preserve the actual
+         * string size in case the string data contain zero bytes, thus prefer
+         * to use typed access in that case.
          * @see @ref hasAttribute(), @ref tryAttribute(), @ref attributeOr()
          */
         const void* attribute(Containers::StringView name) const;
@@ -808,7 +879,8 @@ class MAGNUM_TRADE_EXPORT MaterialData {
          *
          * The @p id is expected to be smaller than @ref attributeCount() const.
          * Expects that @p T corresponds to @ref attributeType(UnsignedInt) const
-         * for given @p id.
+         * for given @p id. In case of a string, the returned view always has
+         * @ref Corrade::Containers::StringViewFlag::NullTerminated set.
          */
         template<class T> T attribute(UnsignedInt id) const;
 
@@ -817,6 +889,8 @@ class MAGNUM_TRADE_EXPORT MaterialData {
          *
          * The @p name is expected to exist. Expects that @p T corresponds to
          * @ref attributeType(Containers::StringView) const for given @p name.
+         * In case of a string, the returned view always has
+         * @ref Corrade::Containers::StringViewFlag::NullTerminated set.
          * @see @ref hasAttribute()
          */
         template<class T> T attribute(Containers::StringView name) const;
@@ -976,6 +1050,8 @@ namespace Implementation {
             return MaterialAttributeType::MutablePointer;
         }
     };
+    /* No specialization for StringView as this type trait should not be used
+       in that case */
     #ifndef DOXYGEN_GENERATING_OUTPUT
     #define _c(type_) template<> struct MaterialAttributeTypeFor<type_> {   \
         constexpr static MaterialAttributeType type() {                     \
@@ -1015,13 +1091,25 @@ namespace Implementation {
 }
 
 /* The 2 extra bytes are for a null byte after the name and a type */
-template<class T> constexpr MaterialAttributeData::MaterialAttributeData(const Containers::StringView name, const T& value) noexcept: _data{Implementation::MaterialAttributeTypeFor<T>::type(), (CORRADE_CONSTEXPR_ASSERT(name.size() + sizeof(T) + 2 <= Implementation::MaterialAttributeDataSize, "Trade::MaterialAttributeData: name" << name << "too long, expected at most" << Implementation::MaterialAttributeDataSize - sizeof(T) - 2 << "bytes for" << Implementation::MaterialAttributeTypeFor<T>::type() << "but got" << name.size()), name), value} {}
+template<class T
+    #ifndef DOXYGEN_GENERATING_OUTPUT
+    , class
+    #endif
+> constexpr MaterialAttributeData::MaterialAttributeData(const Containers::StringView name, const T& value) noexcept: _data{Implementation::MaterialAttributeTypeFor<T>::type(), (CORRADE_CONSTEXPR_ASSERT(name.size() + sizeof(T) + 2 <= Implementation::MaterialAttributeDataSize, "Trade::MaterialAttributeData: name" << name << "too long, expected at most" << Implementation::MaterialAttributeDataSize - sizeof(T) - 2 << "bytes for" << Implementation::MaterialAttributeTypeFor<T>::type() << "but got" << name.size()), name), value} {}
+
+/* The 4 extra bytes are for a null byte after both the name and value, a type
+   and a string size */
+constexpr MaterialAttributeData::MaterialAttributeData(const Containers::StringView name, const Containers::StringView value) noexcept: _data{(CORRADE_CONSTEXPR_ASSERT(name.size() + value.size() + 4 <= Implementation::MaterialAttributeDataSize, "Trade::MaterialAttributeData: name" << name << "and value" << value << "too long, expected at most" << Implementation::MaterialAttributeDataSize - 4 << "bytes in total but got" << name.size() + value.size()), name), value} {}
 
 template<class T> T MaterialAttributeData::value() const {
     CORRADE_ASSERT(Implementation::MaterialAttributeTypeFor<T>::type() == _data.type,
         "Trade::MaterialAttributeData::value(): improper type requested for" << (_data.data + 1) << "of" << _data.type, {});
     return *reinterpret_cast<const T*>(value());
 }
+
+#ifndef DOXYGEN_GENERATING_OUTPUT
+template<> Containers::StringView MaterialAttributeData::value<Containers::StringView>() const;
+#endif
 
 template<class T> T MaterialData::attribute(UnsignedInt id) const {
     const void* const value = attribute(id);
@@ -1032,6 +1120,10 @@ template<class T> T MaterialData::attribute(UnsignedInt id) const {
         "Trade::MaterialData::attribute(): improper type requested for" << (_data[id]._data.data + 1) << "of" << _data[id]._data.type, {});
     return *reinterpret_cast<const T*>(value);
 }
+
+#ifndef DOXYGEN_GENERATING_OUTPUT
+template<> Containers::StringView MaterialData::attribute<Containers::StringView>(UnsignedInt) const;
+#endif
 
 template<class T> T MaterialData::attribute(Containers::StringView name) const {
     const UnsignedInt id = attributeFor(name);
