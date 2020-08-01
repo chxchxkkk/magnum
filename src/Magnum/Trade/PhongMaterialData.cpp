@@ -29,6 +29,7 @@
 #include <Corrade/Containers/EnumSet.hpp>
 #ifdef MAGNUM_BUILD_DEPRECATED
 #include <Corrade/Containers/GrowableArray.h>
+#include <Corrade/Utility/Algorithms.h>
 #endif
 
 namespace Magnum { namespace Trade {
@@ -88,7 +89,13 @@ PhongMaterialData::PhongMaterialData(const Flags flags, const Color4& ambientCol
 
     arrayAppend(data, Containers::InPlaceInit, MaterialAttribute::Shininess, shininess);
 
-    return data;
+    /* Convert back to a non-growable Array as importers don't allow custom
+       deleters in plugin implementations */
+    /** @todo use arrayShrink() when it's actually able to create an Array with
+        a default deleter (currently it uses a NoInit constructor) */
+    Containers::Array<MaterialAttributeData> nonGrowable{data.size()};
+    Utility::copy(data, nonGrowable);
+    return nonGrowable;
 }(), importerState} {
     /* The data can't be filled here because it won't be sorted correctly */
 }
