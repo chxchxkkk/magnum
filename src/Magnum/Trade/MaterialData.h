@@ -1175,6 +1175,40 @@ MAGNUM_TRADE_EXPORT Debug& operator<<(Debug& debug, MaterialAlphaMode value);
 Key-value store for material attributes in one of the types defined by
 @ref MaterialAttributeType.
 
+@section Trade-MaterialData-populating Populating an instance
+
+A @ref MaterialData instance by default takes over the ownership of an
+@ref Corrade::Containers::Array containing material attributes. The values can
+be in one of the types from @ref MaterialAttributeType, which is inferred
+implicitly. You can use either one of the predefined @ref MaterialAttribute
+names or a string for a custom attribute. To avoid naming conflicts, strings
+starting with an uppercase letter are reserved for Magnum itself and custom
+attributes should start with a lowercase letter. The attribute list will
+internally get sorted for faster lookup, so the input order doesn't matter:
+
+@snippet MagnumTrade.cpp MaterialData-populating
+
+It's also possible to have the @ref MaterialData instance refer to external
+data without taking ownership (for example in a memory-mapped file, constant
+memory etc.). The additional second argument is @ref DataFlags that's used only
+for disambiguation and ignored otherwise, and you'll pass a
+@ref Corrade::Containers::ArrayView instead of an
+@ref Corrade::Containers::Array. Note that in this case, since the attribute
+data is treated as immutable, you *have to* ensure the list is sorted by name.
+
+@snippet MagnumTrade.cpp MaterialData-populating-non-owned
+
+<b></b>
+
+@m_class{m-note m-info}
+
+@par
+    Additionally, as shown above, in order to create a @cpp constexpr @ce
+    @ref MaterialAttributeData array, you need to use
+    @ref Corrade::Containers::StringView literals instead of plain C strings
+    or the @ref MaterialAttribute enum, and be sure to call only
+    @cpp constexpr @ce-enabled constructors of stored data types.
+
 @section Trade-MaterialData-representation Internal representation
 
 The attributes are stored sorted by the key in a contiguous array, with each

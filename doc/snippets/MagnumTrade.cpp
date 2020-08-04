@@ -39,6 +39,7 @@
 #include "Magnum/Trade/AbstractImporter.h"
 #include "Magnum/Trade/AnimationData.h"
 #include "Magnum/Trade/ImageData.h"
+#include "Magnum/Trade/MaterialData.h"
 #include "Magnum/Trade/MeshData.h"
 #include "Magnum/Trade/ObjectData2D.h"
 #include "Magnum/Trade/MeshObjectData3D.h"
@@ -245,6 +246,42 @@ for(auto&& row: data.mutablePixels<Color3ub>())
     for(Color3ub& pixel: row)
         pixel = Math::gather<'b', 'g', 'r'>(pixel);
 /* [ImageData-usage-mutable] */
+}
+
+{
+/* [MaterialAttributeData-name] */
+Trade::MaterialAttributeData a{
+    Trade::MaterialAttribute::DiffuseColor, 0x3bd267ff_rgbaf};
+Trade::MaterialAttributeData b{"DiffuseColor", 0x3bd267ff_rgbaf};
+/* [MaterialAttributeData-name] */
+}
+
+{
+/* [MaterialData-populating] */
+Trade::MaterialData data{Trade::MaterialType::Phong, {
+    {Trade::MaterialAttribute::DoubleSided, true},
+    {Trade::MaterialAttribute::DiffuseTextureCoordinates, 5u},
+    {"highlightColor", 0x00ffffff_rgbaf},
+    {Trade::MaterialAttribute::TextureMatrix, Matrix3::scaling({0.5f, 1.0f})}
+}};
+/* [MaterialData-populating] */
+}
+
+{
+/* [MaterialData-populating-non-owned] */
+using namespace Containers::Literals;
+
+constexpr Trade::MaterialAttributeData attributes[]{
+    {"DiffuseCoordinateSet"_s, 5u},
+    {"DoubleSided"_s, true},
+    {"highlightColor"_s, Color4{0.0f, 1.0f, 1.0f, 1.0f}},
+    {"TextureMatrix"_s, Matrix3{{0.5f, 0.0f, 0.0f},
+                                {0.0f, 1.0f, 0.0f},
+                                {0.0f, 0.0f, 1.0f}}}
+};
+
+Trade::MaterialData data{Trade::MaterialType::Phong, {}, attributes};
+/* [MaterialData-populating-non-owned] */
 }
 
 {
