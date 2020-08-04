@@ -130,6 +130,11 @@ PhongMaterialData::Flags PhongMaterialData::flags() const {
 CORRADE_IGNORE_DEPRECATED_POP
 #endif
 
+bool PhongMaterialData::hasSpecularTexture() const {
+    return hasAttribute(MaterialAttribute::SpecularTexture) ||
+           hasAttribute(MaterialAttribute::SpecularGlossinessTexture);
+}
+
 bool PhongMaterialData::hasTextureTransformation() const {
     return hasAttribute(MaterialAttribute::AmbientTextureMatrix) ||
        hasAttribute(MaterialAttribute::DiffuseTextureMatrix) ||
@@ -200,11 +205,13 @@ Color4 PhongMaterialData::specularColor() const {
 }
 
 UnsignedInt PhongMaterialData::specularTexture() const {
+    if(Containers::Optional<UnsignedInt> value = tryAttribute<UnsignedInt>(MaterialAttribute::SpecularGlossinessTexture))
+        return *value;
     return attribute<UnsignedInt>(MaterialAttribute::SpecularTexture);
 }
 
 Matrix3 PhongMaterialData::specularTextureMatrix() const {
-    CORRADE_ASSERT(hasAttribute(MaterialAttribute::SpecularTexture),
+    CORRADE_ASSERT(hasSpecularTexture(),
         "Trade::PhongMaterialData::specularTextureMatrix(): the material doesn't have a specular texture", {});
     if(Containers::Optional<Matrix3> set = tryAttribute<Matrix3>(MaterialAttribute::SpecularTextureMatrix))
         return *set;
@@ -212,7 +219,7 @@ Matrix3 PhongMaterialData::specularTextureMatrix() const {
 }
 
 UnsignedInt PhongMaterialData::specularTextureCoordinates() const {
-    CORRADE_ASSERT(hasAttribute(MaterialAttribute::SpecularTexture),
+    CORRADE_ASSERT(hasSpecularTexture(),
         "Trade::PhongMaterialData::specularTextureCoordinates(): the material doesn't have a specular texture", {});
     if(Containers::Optional<UnsignedInt> set = tryAttribute<UnsignedInt>(MaterialAttribute::SpecularTextureCoordinates))
         return *set;
@@ -221,6 +228,12 @@ UnsignedInt PhongMaterialData::specularTextureCoordinates() const {
 
 UnsignedInt PhongMaterialData::normalTexture() const {
     return attribute<UnsignedInt>(MaterialAttribute::NormalTexture);
+}
+
+MaterialTextureSwizzle PhongMaterialData::normalTextureSwizzle() const {
+    CORRADE_ASSERT(hasAttribute(MaterialAttribute::NormalTexture),
+        "Trade::PhongMaterialData::normalTextureSwizzle(): the material doesn't have a normal texture", {});
+    return attributeOr(MaterialAttribute::NormalTextureSwizzle, MaterialTextureSwizzle::RGB);
 }
 
 Matrix3 PhongMaterialData::normalTextureMatrix() const {

@@ -227,6 +227,17 @@ class MAGNUM_TRADE_EXPORT PhongMaterialData: public MaterialData {
         #endif
 
         /**
+         * @brief Whether the material has a specular texture
+         * @m_since_latest
+         *
+         * Returns @cpp true @ce if any of the
+         * @ref MaterialAttribute::SpecularTexture or
+         * @ref MaterialAttribute::SpecularGlossinessTexture attributes is
+         * present, @cpp false @ce otherwise.
+         */
+        bool hasSpecularTexture() const;
+
+        /**
          * @brief Whether the material has texture transformation
          * @m_since_latest
          *
@@ -391,17 +402,18 @@ class MAGNUM_TRADE_EXPORT PhongMaterialData: public MaterialData {
          * Convenience access to the @ref MaterialAttribute::SpecularColor
          * attribute. If not present, the default is @cpp 0xffffffff_rgbaf @ce.
          *
-         * If the material has @ref MaterialAttribute::SpecularTexture, the
-         * color and texture is meant to be multiplied together.
-         * @see @ref hasAttribute()
+         * If the material has a specular texture, the color and texture is
+         * meant to be multiplied together.
+         * @see @ref hasSpecularTexture()
          */
         Color4 specularColor() const;
 
         /**
          * @brief Specular texture ID
          *
-         * Available only if @ref MaterialAttribute::SpecularTexture is
-         * present. Meant to be multiplied with @ref specularColor().
+         * Available only if either @ref MaterialAttribute::SpecularTexture or
+         * @ref MaterialAttribute::SpecularGlossinessTexture is present. Meant
+         * to be multiplied with @ref specularColor().
          * @see @ref hasAttribute(), @ref AbstractImporter::texture()
          */
         UnsignedInt specularTexture() const;
@@ -413,8 +425,8 @@ class MAGNUM_TRADE_EXPORT PhongMaterialData: public MaterialData {
          * Convenience access to the @ref MaterialAttribute::SpecularTextureMatrix
          * / @ref MaterialAttribute::TextureMatrix attributes. If neither is
          * present, the default is an identity matrix. Available only if the
-         * material has @ref MaterialAttribute::SpecularTexture.
-         * @see @ref hasAttribute()
+         * material has a specular texture.
+         * @see @ref hasSpecularTexture()
          */
         Matrix3 specularTextureMatrix() const;
 
@@ -425,8 +437,8 @@ class MAGNUM_TRADE_EXPORT PhongMaterialData: public MaterialData {
          * Convenience access to the @ref MaterialAttribute::SpecularTextureCoordinates
          * / @ref MaterialAttribute::TextureCoordinates attributes. If neither
          * is present, the default is @cpp 0 @ce. Available only if the
-         * material has @ref MaterialAttribute::SpecularTexture.
-         * @see @ref hasAttribute()
+         * material has a specular texture.
+         * @see @ref hasSpecularTexture()
          */
         UnsignedInt specularTextureCoordinates() const;
 
@@ -449,6 +461,22 @@ class MAGNUM_TRADE_EXPORT PhongMaterialData: public MaterialData {
          * @see @ref hasAttribute(), @ref AbstractImporter::texture()
          */
         UnsignedInt normalTexture() const;
+
+        /**
+         * @brief Normal texture swizzle
+         * @m_since_latest
+         *
+         * Convenience access to the
+         * @ref MaterialAttribute::NormalTextureSwizzle attribute. If not
+         * present, the default is @ref MaterialTextureSwizzle::RGB. Available
+         * only if @ref MaterialAttribute::NormalTexture is present.
+         *
+         * The texture can be also just two-component, in which case the
+         * remaining component is implicit and calculated as
+         * @f$ z = \sqrt{1 - x^2 - y^2} @f$.
+         * @see @ref hasAttribute()
+         */
+        MaterialTextureSwizzle normalTextureSwizzle() const;
 
         /**
          * @brief Normal texture coordinate transformation matrix
