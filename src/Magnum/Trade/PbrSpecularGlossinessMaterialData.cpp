@@ -96,8 +96,8 @@ UnsignedInt PbrSpecularGlossinessMaterialData::diffuseTextureCoordinates() const
     return attributeOr(MaterialAttribute::TextureCoordinates, 0u);
 }
 
-Color3 PbrSpecularGlossinessMaterialData::specularColor() const {
-    return attributeOr(MaterialAttribute::SpecularColor, 0xffffff_srgbf);
+Color4 PbrSpecularGlossinessMaterialData::specularColor() const {
+    return attributeOr(MaterialAttribute::SpecularColor, 0xffffff00_srgbaf);
 }
 
 UnsignedInt PbrSpecularGlossinessMaterialData::specularTexture() const {

@@ -1348,7 +1348,7 @@ void MaterialDataTest::as() {
     int state;
     MaterialData data{MaterialType::Phong|MaterialType::PbrSpecularGlossiness, {
         {MaterialAttribute::DiffuseColor, 0xccffbbff_rgbaf},
-        {MaterialAttribute::SpecularColor, 0x335566_rgbf},
+        {MaterialAttribute::SpecularColor, 0x33556600_rgbaf},
 
         {MaterialAttribute::LayerName, "transparent highlight"},
         {"highlightColor", 0x335566ff_rgbaf}
@@ -1360,20 +1360,20 @@ void MaterialDataTest::as() {
     CORRADE_COMPARE(phong.importerState(), &state);
     CORRADE_COMPARE(phong.layerCount(), 2);
     CORRADE_COMPARE(phong.diffuseColor(), 0xccffbbff_rgbaf);
-    CORRADE_COMPARE(phong.attribute<Color3>("transparent highlight", "highlightColor"), 0x335566ff_rgbaf);
+    CORRADE_COMPARE(phong.attribute<Color4>("transparent highlight", "highlightColor"), 0x335566ff_rgbaf);
 
     auto& specularGlossiness = data.as<PbrSpecularGlossinessMaterialData>();
     CORRADE_COMPARE(specularGlossiness.importerState(), &state);
     CORRADE_COMPARE(specularGlossiness.layerCount(), 2);
     CORRADE_COMPARE(specularGlossiness.diffuseColor(), 0xccffbbff_rgbaf);
-    CORRADE_COMPARE(specularGlossiness.attribute<Color3>("transparent highlight", "highlightColor"), 0x335566ff_rgbaf);
+    CORRADE_COMPARE(specularGlossiness.attribute<Color4>("transparent highlight", "highlightColor"), 0x335566ff_rgbaf);
 }
 
 void MaterialDataTest::asRvalue() {
     int state;
     MaterialData data{MaterialType::Phong|MaterialType::PbrSpecularGlossiness, {
         {MaterialAttribute::DiffuseColor, 0xccffbbff_rgbaf},
-        {MaterialAttribute::SpecularColor, 0x335566_rgbf},
+        {MaterialAttribute::SpecularColor, 0x33556600_rgbaf},
 
         {MaterialAttribute::LayerName, "transparent highlight"},
         {"highlightColor", 0x335566ff_rgbaf}
@@ -1385,13 +1385,13 @@ void MaterialDataTest::asRvalue() {
     CORRADE_COMPARE(data.layerCount(), 1);
     CORRADE_COMPARE(phong.layerCount(), 2);
     CORRADE_COMPARE(phong.diffuseColor(), 0xccffbbff_rgbaf);
-    CORRADE_COMPARE(phong.attribute<Color3>("transparent highlight", "highlightColor"), 0x335566ff_rgbaf);
+    CORRADE_COMPARE(phong.attribute<Color4>("transparent highlight", "highlightColor"), 0x335566ff_rgbaf);
 
     auto specularGlossiness = std::move(phong).as<PbrSpecularGlossinessMaterialData>();
     CORRADE_COMPARE(phong.layerCount(), 1);
     CORRADE_COMPARE(specularGlossiness.layerCount(), 2);
     CORRADE_COMPARE(specularGlossiness.diffuseColor(), 0xccffbbff_rgbaf);
-    CORRADE_COMPARE(specularGlossiness.attribute<Color3>("transparent highlight", "highlightColor"), 0x335566ff_rgbaf);
+    CORRADE_COMPARE(specularGlossiness.attribute<Color4>("transparent highlight", "highlightColor"), 0x335566ff_rgbaf);
 }
 
 void MaterialDataTest::access() {
@@ -2804,7 +2804,7 @@ void MaterialDataTest::pbrMetallicRoughnessAccessInvalidTextures() {
 void MaterialDataTest::pbrSpecularGlossinessAccess() {
     MaterialData base{MaterialType::PbrSpecularGlossiness, {
         {MaterialAttribute::DiffuseColor, 0xccffbbff_rgbaf},
-        {MaterialAttribute::SpecularColor, 0xff3366_rgbf},
+        {MaterialAttribute::SpecularColor, 0xff336600_rgbaf},
         {MaterialAttribute::Glossiness, 0.79f},
         {MaterialAttribute::EmissiveColor, 0x111111_rgbf}
     }};
@@ -2818,7 +2818,7 @@ void MaterialDataTest::pbrSpecularGlossinessAccess() {
     CORRADE_VERIFY(!data.hasTextureTransformation());
     CORRADE_VERIFY(!data.hasTextureCoordinates());
     CORRADE_COMPARE(data.diffuseColor(), 0xccffbbff_rgbaf);
-    CORRADE_COMPARE(data.specularColor(), 0xff3366_rgbf);
+    CORRADE_COMPARE(data.specularColor(), 0xff336600_rgbaf);
     CORRADE_COMPARE(data.glossiness(), 0.79f);
 }
 
@@ -2835,7 +2835,7 @@ void MaterialDataTest::pbrSpecularGlossinessAccessDefaults() {
     CORRADE_VERIFY(!data.hasTextureTransformation());
     CORRADE_VERIFY(!data.hasTextureCoordinates());
     CORRADE_COMPARE(data.diffuseColor(), 0xffffffff_rgbaf);
-    CORRADE_COMPARE(data.specularColor(), 0xffffff_rgbf);
+    CORRADE_COMPARE(data.specularColor(), 0xffffff00_rgbaf);
     CORRADE_COMPARE(data.glossiness(), 1.0f);
 }
 
@@ -2845,7 +2845,7 @@ void MaterialDataTest::pbrSpecularGlossinessAccessTextured() {
         {MaterialAttribute::DiffuseTexture, 0u},
         {MaterialAttribute::DiffuseTextureMatrix, Matrix3::scaling({0.5f, 1.0f})},
         {MaterialAttribute::DiffuseTextureCoordinates, 2u},
-        {MaterialAttribute::SpecularColor, 0x335566_rgbf},
+        {MaterialAttribute::SpecularColor, 0x33556600_rgbaf},
         {MaterialAttribute::SpecularTexture, 1u},
         {MaterialAttribute::SpecularTextureMatrix, Matrix3::scaling({0.5f, 0.5f})},
         {MaterialAttribute::SpecularTextureCoordinates, 3u},
@@ -2877,7 +2877,7 @@ void MaterialDataTest::pbrSpecularGlossinessAccessTextured() {
     CORRADE_COMPARE(data.diffuseTexture(), 0);
     CORRADE_COMPARE(data.diffuseTextureMatrix(), Matrix3::scaling({0.5f, 1.0f}));
     CORRADE_COMPARE(data.diffuseTextureCoordinates(), 2);
-    CORRADE_COMPARE(data.specularColor(), 0x335566_rgbf);
+    CORRADE_COMPARE(data.specularColor(), 0x33556600_rgbaf);
     CORRADE_COMPARE(data.specularTexture(), 1);
     CORRADE_COMPARE(data.specularTextureMatrix(), Matrix3::scaling({0.5f, 0.5f}));
     CORRADE_COMPARE(data.specularTextureCoordinates(), 3);
@@ -2922,7 +2922,7 @@ void MaterialDataTest::pbrSpecularGlossinessAccessTexturedDefaults() {
     CORRADE_COMPARE(data.diffuseTexture(), 1);
     CORRADE_COMPARE(data.diffuseTextureMatrix(), Matrix3{});
     CORRADE_COMPARE(data.diffuseTextureCoordinates(), 0);
-    CORRADE_COMPARE(data.specularColor(), 0xffffff_rgbf);
+    CORRADE_COMPARE(data.specularColor(), 0xffffff00_rgbaf);
     CORRADE_COMPARE(data.specularTexture(), 2);
     CORRADE_COMPARE(data.specularTextureMatrix(), Matrix3{});
     CORRADE_COMPARE(data.specularTextureCoordinates(), 0);

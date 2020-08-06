@@ -172,12 +172,14 @@ class MAGNUM_TRADE_EXPORT PbrSpecularGlossinessMaterialData: public MaterialData
          * @brief Specular color
          *
          * Convenience access to the @ref MaterialAttribute::SpecularColor
-         * attribute. If not present, the default is @cpp 0xffffff_srgbf @ce.
+         * attribute. If not present, the default is @cpp 0xffffff00_srgbaf @ce.
          *
          * If the material has @ref MaterialAttribute::SpecularGlossinessTexture,
          * the color and texture is meant to be multiplied together.
          */
-        Color3 specularColor() const;
+        Color4 specularColor() const;
+
+        // TODO: different default alpha if texture or not
 
         /**
          * @brief Specular texture ID
@@ -188,6 +190,8 @@ class MAGNUM_TRADE_EXPORT PbrSpecularGlossinessMaterialData: public MaterialData
          * @see @ref hasSpecularTexture(), @ref AbstractImporter::texture()
          */
         UnsignedInt specularTexture() const;
+
+        // TODO: specularTextureSwizzle
 
         /**
          * @brief Specular texture coordinate transformation matrix
