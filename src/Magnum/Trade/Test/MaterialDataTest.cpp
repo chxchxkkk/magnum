@@ -91,6 +91,9 @@ class MaterialDataTest: public TestSuite::Tester {
         void constructCopy();
         void constructMove();
 
+        void as();
+        void asRvalue();
+
         void access();
         void accessPointer();
         void accessString();
@@ -251,6 +254,9 @@ MaterialDataTest::MaterialDataTest() {
 
               &MaterialDataTest::constructCopy,
               &MaterialDataTest::constructMove,
+
+              &MaterialDataTest::as,
+              &MaterialDataTest::asRvalue,
 
               &MaterialDataTest::access,
               &MaterialDataTest::accessPointer,
@@ -1336,6 +1342,56 @@ void MaterialDataTest::constructMove() {
 
     CORRADE_VERIFY(std::is_nothrow_move_constructible<MaterialData>::value);
     CORRADE_VERIFY(std::is_nothrow_move_assignable<MaterialData>::value);
+}
+
+void MaterialDataTest::as() {
+    int state;
+    MaterialData data{MaterialType::Phong|MaterialType::PbrSpecularGlossiness, {
+        {MaterialAttribute::DiffuseColor, 0xccffbbff_rgbaf},
+        {MaterialAttribute::SpecularColor, 0x335566_rgbf},
+
+        {MaterialAttribute::LayerName, "transparent highlight"},
+        {"highlightColor", 0x335566ff_rgbaf}
+    }, {
+        2, 4
+    }, &state};
+
+    auto& phong = data.as<PhongMaterialData>();
+    CORRADE_COMPARE(phong.importerState(), &state);
+    CORRADE_COMPARE(phong.layerCount(), 2);
+    CORRADE_COMPARE(phong.diffuseColor(), 0xccffbbff_rgbaf);
+    CORRADE_COMPARE(phong.attribute<Color3>("transparent highlight", "highlightColor"), 0x335566ff_rgbaf);
+
+    auto& specularGlossiness = data.as<PbrSpecularGlossinessMaterialData>();
+    CORRADE_COMPARE(specularGlossiness.importerState(), &state);
+    CORRADE_COMPARE(specularGlossiness.layerCount(), 2);
+    CORRADE_COMPARE(specularGlossiness.diffuseColor(), 0xccffbbff_rgbaf);
+    CORRADE_COMPARE(specularGlossiness.attribute<Color3>("transparent highlight", "highlightColor"), 0x335566ff_rgbaf);
+}
+
+void MaterialDataTest::asRvalue() {
+    int state;
+    MaterialData data{MaterialType::Phong|MaterialType::PbrSpecularGlossiness, {
+        {MaterialAttribute::DiffuseColor, 0xccffbbff_rgbaf},
+        {MaterialAttribute::SpecularColor, 0x335566_rgbf},
+
+        {MaterialAttribute::LayerName, "transparent highlight"},
+        {"highlightColor", 0x335566ff_rgbaf}
+    }, {
+        2, 4
+    }, &state};
+
+    auto phong = std::move(data).as<PhongMaterialData>();
+    CORRADE_COMPARE(data.layerCount(), 1);
+    CORRADE_COMPARE(phong.layerCount(), 2);
+    CORRADE_COMPARE(phong.diffuseColor(), 0xccffbbff_rgbaf);
+    CORRADE_COMPARE(phong.attribute<Color3>("transparent highlight", "highlightColor"), 0x335566ff_rgbaf);
+
+    auto specularGlossiness = std::move(phong).as<PbrSpecularGlossinessMaterialData>();
+    CORRADE_COMPARE(phong.layerCount(), 1);
+    CORRADE_COMPARE(specularGlossiness.layerCount(), 2);
+    CORRADE_COMPARE(specularGlossiness.diffuseColor(), 0xccffbbff_rgbaf);
+    CORRADE_COMPARE(specularGlossiness.attribute<Color3>("transparent highlight", "highlightColor"), 0x335566ff_rgbaf);
 }
 
 void MaterialDataTest::access() {
